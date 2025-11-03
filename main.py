@@ -95,4 +95,5 @@ async def on_message(message):
             await message.channel.send(f'{summary[i:i+TEXT_LIMIT]}')
 
 
-client.run(os.getenv(vars.env('WIKITOKEN')))
+# i think this is the discord bot token not the wikipedia one
+client.run(os.getenv('WIKITOKEN'))
