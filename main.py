@@ -4,7 +4,6 @@ import requests
 import json
 import re
 import time
-import wikipediaapi
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -29,7 +28,6 @@ def get_random_article(prompt):
 
     data = list(json_data['query']['pages'].values())[0]['extract']
 
-    #TODO: Get rid of span tags
     quoteBold = re.sub(r"<\/?(?:b|strong)>", "**", data)
     quoteBoldItalic = re.sub(r"<\/?(?:i|em)( [^>]+)?>", "*", quoteBold)
     quoteBoldItalicDel = re.sub(r"<\/?del>", "~~", quoteBoldItalic)
