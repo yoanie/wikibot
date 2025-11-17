@@ -88,9 +88,24 @@ async def on_message(message):
         await message.channel.send(
             f"# [{page}](<https://en.wikipedia.org/wiki/{pageUnderscore}>)\n[[image]]({imageUrl})\n"
         )
-        length = len(summary)
-        for i in range(0, length, TEXT_LIMIT):
-            await message.channel.send(f'{summary[i:i+TEXT_LIMIT]}')
+        
+        pages = []
+        pointer = 0
+        while pointer < len(summary):
+            #print(summary[pointer:pointer+TEXT_LIMIT])
+            temp = TEXT_LIMIT - summary[pointer:pointer +
+                                        TEXT_LIMIT][::-1].index('.')
+            pages.append(summary[pointer:pointer + temp])
+            print(len(summary[pointer:pointer + temp]))
+            pointer += temp + 1
+            if (summary[pointer:pointer + 1] == ' '):
+                pointer += 1
+
+        for i in range(0, len(pages), 1):
+            await message.channel.send(f'{pages[i]}')
+        #length = len(summary)
+        #for i in range(0, length, TEXT_LIMIT):
+        #    await message.channel.send(f'{summary[i:i+TEXT_LIMIT]}')
 
 
 # i think this is the discord bot token not the wikipedia one
