@@ -6,7 +6,7 @@ import re
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
-TEXT_LIMIT = 2000 - 6
+TEXT_LIMIT = 2000
 EMOJI_LEFT = '⬅️'
 EMOJI_RIGHT = '➡️'
 
@@ -96,11 +96,13 @@ async def on_message(message):
         )
 
         # seperate full text by pages
-        pages = partition_pages_from_summary(summary)
+        pages = partition_pages_from_text(summary, TEXT_LIMIT - 18)
 
         # send message of only the page specified
         currIndex = 0
-        messageSent = await message.channel.send(f'{pages[currIndex]}')
+        messageSent = await message.channel.send(
+            f'{pages[currIndex]}\n⎯\nPage: {format_number_for_discord(currIndex+1)}/{format_number_for_discord(len(pages))}'
+        )
         await messageSent.add_reaction(EMOJI_LEFT)
         await messageSent.add_reaction(EMOJI_RIGHT)
 
@@ -108,23 +110,32 @@ async def on_message(message):
         messageController[messageSent.id] = [pages, currIndex]
 
 
-def partition_pages_from_summary(summary):
+def format_number_for_discord(number):
+    if number < 10:
+        return f'`0{number}`'
+    return f'`{number}`'
+
+
+def partition_pages_from_text(text, charlimit):
     pages = []
     pointer = 0
-    while pointer < len(summary):
-        #print(summary[pointer:pointer+TEXT_LIMIT])
+    while pointer < len(text):
+        #print(summary[pointer:pointer+charlimit])
         try:
-            temp = TEXT_LIMIT - summary[pointer:pointer +
-                                        TEXT_LIMIT][::-1].index('.')
+            temp = charlimit - text[pointer:pointer +
+                                    charlimit][::-1].index('.')
         except:
-            temp = TEXT_LIMIT
+            print(
+                "def partition_pages_from_text: couldnt find period, so defaulting..."
+            )
+            temp = charlimit
         else:
-            temp = TEXT_LIMIT - summary[pointer:pointer +
-                                        TEXT_LIMIT][::-1].index('.')
-        pages.append(summary[pointer:pointer + temp])
-        print(len(summary[pointer:pointer + temp]))
+            temp = charlimit - text[pointer:pointer +
+                                    charlimit][::-1].index('.')
+        pages.append(text[pointer:pointer + temp])
+        print(len(text[pointer:pointer + temp]))
         pointer += temp + 1
-        if (summary[pointer:pointer + 1] == ' '):
+        if (text[pointer:pointer + 1] == ' '):
             pointer += 1
 
     return pages
