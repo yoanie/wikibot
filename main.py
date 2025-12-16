@@ -1,14 +1,17 @@
 import discord
 import os
 import requests
-import json
 import re
-import time
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
-TEXT_LIMIT = 2000
+TEXT_LIMIT = 2000 - 6
+EMOJI_LEFT = '⬅️'
+EMOJI_RIGHT = '➡️'
+
+cache = {}
+messageController = {}  # index:discMessageId {titleString, currPageIndex}
 
 
 def get_random_article(prompt):
@@ -81,32 +84,64 @@ async def on_message(message):
     if message.content.startswith('$page'):
         page = 'Ray cat'
 
-        summary = get_random_article(page)
-        imageUrl = get_article_image(page)
+        if page not in cache:
+            cache[page] = [get_random_article(page), get_article_image(page)]
+        #cache[page] = [get_random_article(page), get_article_image(page)]
+        summary, imageUrl = cache[page]
 
+        # for displaying the very first title thing
         pageUnderscore = page.replace(" ", "_")
         await message.channel.send(
             f"# [{page}](<https://en.wikipedia.org/wiki/{pageUnderscore}>)\n[[image]]({imageUrl})\n"
         )
-        
-        pages = []
-        pointer = 0
-        while pointer < len(summary):
-            #print(summary[pointer:pointer+TEXT_LIMIT])
+
+        # seperate full text by pages
+        pages = partition_pages_from_summary(summary)
+
+        # send message of only the page specified
+        currIndex = 0
+        messageSent = await message.channel.send(f'{pages[currIndex]}')
+        await messageSent.add_reaction(EMOJI_LEFT)
+        await messageSent.add_reaction(EMOJI_RIGHT)
+
+        # print(messageSent)
+        messageController[messageSent.id] = [pages, currIndex]
+
+
+def partition_pages_from_summary(summary):
+    pages = []
+    pointer = 0
+    while pointer < len(summary):
+        #print(summary[pointer:pointer+TEXT_LIMIT])
+        try:
             temp = TEXT_LIMIT - summary[pointer:pointer +
                                         TEXT_LIMIT][::-1].index('.')
-            pages.append(summary[pointer:pointer + temp])
-            print(len(summary[pointer:pointer + temp]))
-            pointer += temp + 1
-            if (summary[pointer:pointer + 1] == ' '):
-                pointer += 1
+        except:
+            temp = TEXT_LIMIT
+        else:
+            temp = TEXT_LIMIT - summary[pointer:pointer +
+                                        TEXT_LIMIT][::-1].index('.')
+        pages.append(summary[pointer:pointer + temp])
+        print(len(summary[pointer:pointer + temp]))
+        pointer += temp + 1
+        if (summary[pointer:pointer + 1] == ' '):
+            pointer += 1
 
-        for i in range(0, len(pages), 1):
-            await message.channel.send(f'{pages[i]}')
-        #length = len(summary)
-        #for i in range(0, length, TEXT_LIMIT):
-        #    await message.channel.send(f'{summary[i:i+TEXT_LIMIT]}')
+    return pages
 
 
-# i think this is the discord bot token not the wikipedia one
+@client.event
+async def on_raw_reaction_add(payload):
+    if payload.user_id == "bot_ID":
+        return
+
+    print(payload.emoji)
+    if payload.emoji == EMOJI_LEFT:
+        print('user reacted')
+
+    if payload.emoji == EMOJI_RIGHT:
+        print('user reacted')
+
+
+# discord bot token
 client.run(os.getenv('WIKITOKEN'))
