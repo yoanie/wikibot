@@ -11,7 +11,8 @@ EMOJI_LEFT = '⬅️'
 EMOJI_RIGHT = '➡️'
 
 cache = {}
-messageController = {}  # index:discMessageId {titleString, currPageIndex}
+messageController = {
+}  # index:discMessageId {messageObj, titleString, currPageIndex}
 
 
 def get_random_article(prompt):
@@ -96,7 +97,8 @@ async def on_message(message):
         )
 
         # seperate full text by pages
-        pages = partition_pages_from_text(summary, TEXT_LIMIT - 18)
+        pages = partition_pages_from_text(summary, TEXT_LIMIT - 20)
+        # print(pages)
 
         # send message of only the page specified
         currIndex = 0
@@ -107,7 +109,7 @@ async def on_message(message):
         await messageSent.add_reaction(EMOJI_RIGHT)
 
         # print(messageSent)
-        messageController[messageSent.id] = [pages, currIndex]
+        messageController[messageSent.id] = [messageSent, page, currIndex]
 
 
 def format_number_for_discord(number):
@@ -125,13 +127,14 @@ def partition_pages_from_text(text, charlimit):
             temp = charlimit - text[pointer:pointer +
                                     charlimit][::-1].index('.')
         except:
-            print(
+            """print(
                 "def partition_pages_from_text: couldnt find period, so defaulting..."
-            )
+            )"""
             temp = charlimit
         else:
             temp = charlimit - text[pointer:pointer +
                                     charlimit][::-1].index('.')
+
         pages.append(text[pointer:pointer + temp])
         print(len(text[pointer:pointer + temp]))
         pointer += temp + 1
@@ -143,15 +146,46 @@ def partition_pages_from_text(text, charlimit):
 
 @client.event
 async def on_raw_reaction_add(payload):
-    if payload.user_id == "bot_ID":
+    # print(payload)
+    if payload.user_id == payload.message_author_id:
+        return
+    print("reaction reacted on bot message!")
+
+    if (payload.emoji.name != EMOJI_LEFT
+            and payload.emoji.name != EMOJI_RIGHT):
         return
 
-    print(payload.emoji)
-    if payload.emoji == EMOJI_LEFT:
-        print('user reacted')
+    print(payload.message_id)
+    print(messageController[payload.message_id])
 
-    if payload.emoji == EMOJI_RIGHT:
-        print('user reacted')
+    # seperate full text by pages
+    summary = cache[messageController[payload.message_id][1]][0]
+    # print(summary)
+    pages = partition_pages_from_text(summary, TEXT_LIMIT - 20)
+
+    print(payload.emoji)
+    newPageIndex = 0
+    if payload.emoji.name == EMOJI_LEFT:
+        print('user reacted left')
+        newPageIndex = (messageController[payload.message_id][2] - 1 +
+                        len(pages)) % len(pages)
+    elif payload.emoji.name == EMOJI_RIGHT:
+        print('user reacted right')
+        newPageIndex = (messageController[payload.message_id][2] + 1 +
+                        len(pages)) % len(pages)
+
+    messageController[payload.message_id][2] = newPageIndex
+
+    print(newPageIndex)
+    # print(pages)
+    # print(pages[newPageIndex])
+
+    messag = messageController[payload.message_id][0]
+    await messag.edit(
+        content=
+        f'{pages[newPageIndex]}\n⎯\nPage: {format_number_for_discord(newPageIndex+1)}/{format_number_for_discord(len(pages))}'
+    )
+    #f'{pages[currIndex]}\n⎯\nPage: {format_number_for_discord(currIndex+1)}/{format_number_for_discord(len(pages))}'
 
 
 # discord bot token
