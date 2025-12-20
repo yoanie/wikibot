@@ -89,43 +89,52 @@ async def on_message(message):
         arg1 = message.content[6:]
         page = re.sub(r'^\s+|\s+$|\s+(?=\s)', "", arg1)
 
-        
-        if (page == ""):
-            await message.channel.send(
-                "`you didn't set an article to search for! the $page function searches Wikipedia for an article and returns it.`\n`if you want a suggestion of what to search, try the article titled \"Ray cat\"! it's my personal favorite.`"
-            )
-            return
-        if (get_article_text(page) == ""):
-            await message.channel.send(
-                f"`sorry, it seems that the article \"${page}\" didn't have an entry in Wikipedia, or that the page was blank. maybe you made a typo?`"
-            )
-            return
-        
-        if page not in cache:
-            cache[page] = [get_article_text(page), get_article_image(page)]
-        #cache[page] = [get_article_text(page), get_article_image(page)]
-        summary, imageUrl = cache[page]
+        await send_specific_page_as_message(message.channel, page, 0)
 
-        # for displaying the very first title thing
-        pageUnderscore = page.replace(" ", "_")
-        await message.channel.send(
-            f"# [{page}](<https://en.wikipedia.org/wiki/{pageUnderscore}>)\n[[image]]({imageUrl})\n"
+    if message.content.startswith('$article'):
+        arg1 = message.content[9:]
+        page = re.sub(r'^\s+|\s+$|\s+(?=\s)', "", arg1)
+
+        await send_specific_page_as_message(message.channel, page, 0)
+
+
+async def send_specific_page_as_message(channel, title, n):
+    if (title == ""):
+        await channel.send(
+            "`you didn't set an article to search for! the $page function searches Wikipedia for an article and returns it.`\n`if you want a suggestion of what to search, try the article titled \"Ray cat\"! it's my personal favorite.`"
         )
-
-        # seperate full text by pages
-        pages = partition_pages_from_text(summary, TEXT_LIMIT - 20)
-        # print(pages)
-
-        # send message of only the page specified
-        currIndex = 0
-        messageSent = await message.channel.send(
-            f'{pages[currIndex]}\n⎯\nPage: {format_number_for_discord(currIndex+1)}/{format_number_for_discord(len(pages))}'
+        return
+    if (get_article_text(title) == ""):
+        await channel.send(
+            f"`sorry, it seems that the article \"${title}\" didn't have an entry in Wikipedia, or that the page was blank. maybe you made a typo?`"
         )
-        await messageSent.add_reaction(EMOJI_LEFT)
-        await messageSent.add_reaction(EMOJI_RIGHT)
+        return
 
-        # print(messageSent)
-        messageController[messageSent.id] = [messageSent, page, currIndex]
+    if title not in cache:
+        cache[title] = [get_article_text(title), get_article_image(title)]
+    #cache[page] = [get_article_text(page), get_article_image(page)]
+    summary, imageUrl = cache[title]
+
+    # for displaying the very first title thing
+    titleUnderscore = title.replace(" ", "_")
+    await channel.send(
+        f"# [{title}](<https://en.wikipedia.org/wiki/{titleUnderscore}>)\n[[image]]({imageUrl})\n"
+    )
+
+    # seperate full text by pages
+    pages = partition_pages_from_text(summary, TEXT_LIMIT - 20)
+    # print(pages)
+
+    # send message of only the page specified
+    currIndex = 0
+    messageSent = await channel.send(
+        f'{pages[currIndex]}\n⎯\nPage: {format_number_for_discord(currIndex+1)}/{format_number_for_discord(len(pages))}'
+    )
+    await messageSent.add_reaction(EMOJI_LEFT)
+    await messageSent.add_reaction(EMOJI_RIGHT)
+
+    # print(messageSent)
+    messageController[messageSent.id] = [messageSent, title, currIndex]
 
 
 def format_number_for_discord(number):
