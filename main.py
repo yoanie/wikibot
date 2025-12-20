@@ -15,7 +15,7 @@ messageController = {
 }  # index:discMessageId {messageObj, titleString, currPageIndex}
 
 
-def get_random_article(prompt):
+def get_article_text(prompt):
     params: dict[str, str] = {
         'action': 'query',
         'titles': prompt,
@@ -27,10 +27,13 @@ def get_random_article(prompt):
                             params=params)
 
     # print(response)
-    json_data = response.json()
-    # print(json_data['query']['pages'].values())
+    json_data = list(response.json()['query']['pages'].values())[0]
+    print(list(json_data))
 
-    data = list(json_data['query']['pages'].values())[0]['extract']
+    if 'extract' not in json_data:
+        return ''
+
+    data = json_data['extract']
 
     quoteBold = re.sub(r"<\/?(?:b|strong)>", "**", data)
     quoteBoldItalic = re.sub(r"<\/?(?:i|em)( [^>]+)?>", "*", quoteBold)
@@ -83,11 +86,24 @@ async def on_message(message):
         await message.channel.send('Hello!')
 
     if message.content.startswith('$page'):
-        page = 'Ray cat'
+        arg1 = message.content[6:]
+        page = re.sub(r'^\s+|\s+$|\s+(?=\s)', "", arg1)
 
+        
+        if (page == ""):
+            await message.channel.send(
+                "`you didn't set an article to search for! the $page function searches Wikipedia for an article and returns it.`\n`if you want a suggestion of what to search, try the article titled \"Ray cat\"! it's my personal favorite.`"
+            )
+            return
+        if (get_article_text(page) == ""):
+            await message.channel.send(
+                f"`sorry, it seems that the article \"${page}\" didn't have an entry in Wikipedia, or that the page was blank. maybe you made a typo?`"
+            )
+            return
+        
         if page not in cache:
-            cache[page] = [get_random_article(page), get_article_image(page)]
-        #cache[page] = [get_random_article(page), get_article_image(page)]
+            cache[page] = [get_article_text(page), get_article_image(page)]
+        #cache[page] = [get_article_text(page), get_article_image(page)]
         summary, imageUrl = cache[page]
 
         # for displaying the very first title thing
