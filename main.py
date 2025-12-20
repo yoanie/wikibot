@@ -85,11 +85,17 @@ async def on_message(message):
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
 
-    if message.content.startswith('$page'):
-        arg1 = message.content[6:]
+    if message.content[:5] == '$page':
+        arg0 = re.sub(r"^\$page(\d*)\D+$", r"\1", message.content)
+        if (arg0 == ''):
+            pagenum = 1
+        else:
+            pagenum = int(arg0)
+
+        arg1 = message.content[6 + len(arg0):]
         page = re.sub(r'^\s+|\s+$|\s+(?=\s)', "", arg1)
 
-        await send_specific_page_as_message(message.channel, page, 0)
+        await send_specific_page_as_message(message.channel, page, pagenum - 1)
 
     if message.content.startswith('$article'):
         arg1 = message.content[9:]
@@ -101,12 +107,12 @@ async def on_message(message):
 async def send_specific_page_as_message(channel, title, n):
     if (title == ""):
         await channel.send(
-            "`you didn't set an article to search for! the $page function searches Wikipedia for an article and returns it.`\n`if you want a suggestion of what to search, try the article titled \"Ray cat\"! it's my personal favorite.`"
+            "`you didn't set an article to search for!`\n`if you want a suggestion of what to search, try the article titled \"Ray cat\"! it's my personal favorite.`"
         )
         return
     if (get_article_text(title) == ""):
         await channel.send(
-            f"`sorry, it seems that the article \"${title}\" didn't have an entry in Wikipedia, or that the page was blank. maybe you made a typo?`"
+            f"`sorry, it seems that the article \"{title}\" didn't have an entry in Wikipedia, or that the page was blank. maybe you made a typo?`"
         )
         return
 
@@ -126,7 +132,13 @@ async def send_specific_page_as_message(channel, title, n):
     # print(pages)
 
     # send message of only the page specified
-    currIndex = 0
+    if n + 1 > len(pages):
+        currIndex = len(pages) - 1
+    elif n < 0:
+        currIndex = 0
+    else:
+        currIndex = n
+
     messageSent = await channel.send(
         f'{pages[currIndex]}\n⎯\nPage: {format_number_for_discord(currIndex+1)}/{format_number_for_discord(len(pages))}'
     )
