@@ -2,10 +2,13 @@ import discord
 import os
 import requests
 import re
+import datetime
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
+
+USER_AGENT = 'wikibot, a python program (made by yoanie)'
 TEXT_LIMIT = 2000
 EMOJI_LEFT = '⬅️'
 EMOJI_RIGHT = '➡️'
@@ -23,13 +26,44 @@ def get_article_text(prompt):
         'format': 'json'
     }
     response = requests.get('https://en.wikipedia.org/w/api.php',
-                            headers={'User-Agent': 'python'},
+                            headers={
+                                'Authorization':
+                                os.getenv('WIKIBOT_ACCESSTOKEN'),
+                                'User-Agent': USER_AGENT
+                            },
                             params=params)
 
-    # print(response)
+    # print(response.json())
     json_data = list(response.json()['query']['pages'].values())[0]
-    print(list(json_data))
+    # print(list(json_data))
 
+    return get_formatted_fulltext_from_json(json_data)
+
+
+def get_featured_article_title(date):
+    print("getting query")
+    params: dict[str, str] = {
+        'action': 'query',
+        'prop': 'extracts',
+        'format': 'json'
+    }
+
+    response = requests.get(
+        'https://api.wikimedia.org/feed/v1/wikipedia/en/featured/' + date,
+        headers={
+            'Authorization': os.getenv('WIKIBOT_ACCESSTOKEN'),
+            'User-Agent': USER_AGENT
+        },
+        params=params)
+
+    # print(response.json()['tfa'])
+    title = response.json()['tfa']['titles']['normalized']
+    print(title)
+
+    return title
+
+
+def get_formatted_fulltext_from_json(json_data):
     if 'extract' not in json_data:
         return ''
 
@@ -103,14 +137,35 @@ async def on_message(message):
 
         await send_specific_page_as_message(message.channel, page, 0)
 
+    if message.content.startswith('$featured') or message.content.startswith(
+            '$featuredarticle') or message.content.startswith('$fa'):
+        today = datetime.datetime.now()
+        date = today.strftime('%Y/%m/%d')
+
+        arg1 = re.findall(r'^.+ ([ \S]*)', message.content)
+        print("arg1 is "+str(arg1))
+        if len(arg1) != 0:
+            date = arg1[0]
+        print('date is '+str(date))
+
+        title = f'{get_featured_article_title(date)}'
+
+        if title == "":
+            await message.channel.send(
+                "`it seems the date you entered (\"{date}\") isn't valid, or there isn't an entry for this date!`\n`be sure to check that your date is in YYYY/MM/DD format!`"
+            )
+            return
+
+        await send_specific_page_as_message(message.channel, title, 0)
+
 
 async def send_specific_page_as_message(channel, title, n):
-    if (title == ""):
+    if title == "":
         await channel.send(
             "`you didn't set an article to search for!`\n`if you want a suggestion of what to search, try the article titled \"Ray cat\"! it's my personal favorite.`"
         )
         return
-    if (get_article_text(title) == ""):
+    if get_article_text(title) == "":
         await channel.send(
             f"`sorry, it seems that the article \"{title}\" didn't have an entry in Wikipedia, or that the page was blank. maybe you made a typo?`"
         )
