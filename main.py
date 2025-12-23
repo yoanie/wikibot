@@ -142,18 +142,30 @@ async def on_message(message):
         today = datetime.datetime.now()
         date = today.strftime('%Y/%m/%d')
 
+        arg1 = re.findall(r'^.+ ([ \S]*)', message.content)
+        print("arg1 is "+str(arg1))
+        if len(arg1) != 0:
+            date = arg1[0]
+        print('date is '+str(date))
+
         title = f'{get_featured_article_title(date)}'
+
+        if title == "":
+            await message.channel.send(
+                "`it seems the date you entered (\"{date}\") isn't valid, or there isn't an entry for this date!`\n`be sure to check that your date is in YYYY/MM/DD format!`"
+            )
+            return
 
         await send_specific_page_as_message(message.channel, title, 0)
 
 
 async def send_specific_page_as_message(channel, title, n):
-    if (title == ""):
+    if title == "":
         await channel.send(
             "`you didn't set an article to search for!`\n`if you want a suggestion of what to search, try the article titled \"Ray cat\"! it's my personal favorite.`"
         )
         return
-    if (get_article_text(title) == ""):
+    if get_article_text(title) == "":
         await channel.send(
             f"`sorry, it seems that the article \"{title}\" didn't have an entry in Wikipedia, or that the page was blank. maybe you made a typo?`"
         )
