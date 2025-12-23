@@ -2,10 +2,13 @@ import discord
 import os
 import requests
 import re
+import datetime
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
+
+USER_AGENT = 'wikibot, a python program (made by yoanie)'
 TEXT_LIMIT = 2000
 EMOJI_LEFT = '⬅️'
 EMOJI_RIGHT = '➡️'
@@ -23,13 +26,63 @@ def get_article_text(prompt):
         'format': 'json'
     }
     response = requests.get('https://en.wikipedia.org/w/api.php',
-                            headers={'User-Agent': 'python'},
-                            params=params)
+                            headers={
+                                'Authorization':
+                                os.getenv('WIKIBOT_ACCESSTOKEN'),
+                                'User-Agent': USER_AGENT
+                            })
+    # , params=params)
 
     # print(response)
     json_data = list(response.json()['query']['pages'].values())[0]
     print(list(json_data))
 
+    return get_formatted_fulltext_from_json(json_data)
+
+
+def get_featured_article_text(date):
+    print("getting query")
+    """params: dict[str, str] = {
+        'action': 'query',
+        'prop': 'extracts',
+        'format': 'json'
+    }"""
+
+    response = requests.get(
+        'https://api.wikimedia.org/feed/v1/wikipedia/en/featured/' + date,
+        headers={
+            'Authorization': os.getenv('WIKIBOT_ACCESSTOKEN'),
+            'User-Agent': USER_AGENT
+        })
+    #, params=params)
+
+    # print(response.json()['tfa'])
+    json_data = response.json()['tfa']
+    print(json_data)
+
+    return get_formatted_fulltext_from_json(json_data)
+
+
+async def send_featured_article_as_message(channel, date, n):
+    # cache in the future
+
+    summary = get_featured_article_text(date)
+
+    pages = partition_pages_from_text(summary, TEXT_LIMIT - 20)
+    print(len(pages))
+
+    currIndex = n
+    messageSent = await channel.send(
+        f'{pages[currIndex]}\n⎯\nPage: {format_number_for_discord(currIndex+1)}/{format_number_for_discord(len(pages))}'
+    )
+    await messageSent.add_reaction(EMOJI_LEFT)
+    await messageSent.add_reaction(EMOJI_RIGHT)
+
+    # print(messageSent)
+    messageController[messageSent.id] = [messageSent, title, currIndex]
+
+
+def get_formatted_fulltext_from_json(json_data):
     if 'extract' not in json_data:
         return ''
 
@@ -102,6 +155,13 @@ async def on_message(message):
         page = re.sub(r'^\s+|\s+$|\s+(?=\s)', "", arg1)
 
         await send_specific_page_as_message(message.channel, page, 0)
+
+    if message.content.startswith('$featured') or message.content.startswith(
+            '$featuredarticle') or message.content.startswith('$fa'):
+        today = datetime.datetime.now()
+        date = today.strftime('%Y/%m/%d')
+
+        await send_featured_article_as_message(message.channel, date, 0)
 
 
 async def send_specific_page_as_message(channel, title, n):
