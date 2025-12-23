@@ -30,56 +30,37 @@ def get_article_text(prompt):
                                 'Authorization':
                                 os.getenv('WIKIBOT_ACCESSTOKEN'),
                                 'User-Agent': USER_AGENT
-                            })
-    # , params=params)
+                            },
+                            params=params)
 
-    # print(response)
+    # print(response.json())
     json_data = list(response.json()['query']['pages'].values())[0]
-    print(list(json_data))
+    # print(list(json_data))
 
     return get_formatted_fulltext_from_json(json_data)
 
 
-def get_featured_article_text(date):
+def get_featured_article_title(date):
     print("getting query")
-    """params: dict[str, str] = {
+    params: dict[str, str] = {
         'action': 'query',
         'prop': 'extracts',
         'format': 'json'
-    }"""
+    }
 
     response = requests.get(
         'https://api.wikimedia.org/feed/v1/wikipedia/en/featured/' + date,
         headers={
             'Authorization': os.getenv('WIKIBOT_ACCESSTOKEN'),
             'User-Agent': USER_AGENT
-        })
-    #, params=params)
+        },
+        params=params)
 
     # print(response.json()['tfa'])
-    json_data = response.json()['tfa']
-    print(json_data)
+    title = response.json()['tfa']['titles']['normalized']
+    print(title)
 
-    return get_formatted_fulltext_from_json(json_data)
-
-
-async def send_featured_article_as_message(channel, date, n):
-    # cache in the future
-
-    summary = get_featured_article_text(date)
-
-    pages = partition_pages_from_text(summary, TEXT_LIMIT - 20)
-    print(len(pages))
-
-    currIndex = n
-    messageSent = await channel.send(
-        f'{pages[currIndex]}\n⎯\nPage: {format_number_for_discord(currIndex+1)}/{format_number_for_discord(len(pages))}'
-    )
-    await messageSent.add_reaction(EMOJI_LEFT)
-    await messageSent.add_reaction(EMOJI_RIGHT)
-
-    # print(messageSent)
-    messageController[messageSent.id] = [messageSent, title, currIndex]
+    return title
 
 
 def get_formatted_fulltext_from_json(json_data):
@@ -161,7 +142,9 @@ async def on_message(message):
         today = datetime.datetime.now()
         date = today.strftime('%Y/%m/%d')
 
-        await send_featured_article_as_message(message.channel, date, 0)
+        title = f'{get_featured_article_title(date)}'
+
+        await send_specific_page_as_message(message.channel, title, 0)
 
 
 async def send_specific_page_as_message(channel, title, n):
