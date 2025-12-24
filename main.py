@@ -106,6 +106,26 @@ def get_article_image(prompt):
     return imageUrl
 
 
+def get_random_article_title():
+    params: dict[str, str] = {
+        'action': 'query',
+        'prop': 'extracts',
+        'format': 'json'
+    }
+    response = requests.get(
+        'https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1',
+        headers={
+            'Authorization': os.getenv('WIKIBOT_ACCESSTOKEN'),
+            'User-Agent': USER_AGENT
+        },
+        params=params)
+
+    json_data = response.json()['query']['random'][0]
+    print(json_data)
+
+    return json_data['title']
+
+
 @client.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(client))
@@ -137,16 +157,23 @@ async def on_message(message):
 
         await send_specific_page_as_message(message.channel, page, 0)
 
+    if message.content.startswith('$random') or message.content.startswith(
+            '$randomarticle') or message.content.startswith(
+                '$r') or message.content.startswith('$ra'):
+
+        title = get_random_article_title()
+        await send_specific_page_as_message(message.channel, title, 0)
+
     if message.content.startswith('$featured') or message.content.startswith(
             '$featuredarticle') or message.content.startswith('$fa'):
         today = datetime.datetime.now()
         date = today.strftime('%Y/%m/%d')
 
         arg1 = re.findall(r'^.+ ([ \S]*)', message.content)
-        print("arg1 is "+str(arg1))
+        print("arg1 is " + str(arg1))
         if len(arg1) != 0:
             date = arg1[0]
-        print('date is '+str(date))
+        print('date is ' + str(date))
 
         title = f'{get_featured_article_title(date)}'
 
